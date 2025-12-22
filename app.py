@@ -1,172 +1,231 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
 import plotly.express as px
 
-# =====================
-# CONFIG
-# =====================
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(
-    page_title="Korupsi sebagai Pelumas Efisiensi Birokrasi",
+    page_title="Korupsi & Efisiensi Birokrasi",
+    page_icon="📊",
     layout="wide"
 )
 
-# =====================
+# =========================
 # LOAD DATA
-# =====================
+# =========================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("master_dataset_2024_final.csv")
-    return df
+    return pd.read_csv("master_dataset_2024_final.csv")
 
 df = load_data()
 
-# =====================
-# HEADER
-# =====================
-st.title("Korupsi sebagai Pelumas Efisiensi Birokrasi Negara Berkembang")
-st.caption("Dashboard berbasis data real tahun 2024")
+# =========================
+# SIDEBAR
+# =========================
+st.sidebar.title("📌 Dashboard Navigation")
+st.sidebar.markdown(
+    """
+    **Studi Kasus**
+    
+    *Korupsi sebagai Pelumas  
+    Efisiensi Birokrasi  
+    Negara Berkembang*
+    """
+)
 
-# =====================
-# TABS (SESUIAI BAB)
-# =====================
+country_filter = st.sidebar.multiselect(
+    "Pilih Negara",
+    sorted(df["country"].unique()),
+    default=[]
+)
+
+if country_filter:
+    df = df[df["country"].isin(country_filter)]
+
+# =========================
+# TABS
+# =========================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "BAB I | Deskriptif",
-    "BAB II | Diagnostik",
-    "BAB III | Prediktif",
-    "BAB IV | Ethical Disclaimer",
-    "BAB V | Refleksi"
+    "📍 Overview",
+    "🏛️ Kondisi Saat Ini",
+    "📈 Analisis & Solusi",
+    "⚠️ Ethical Disclaimer",
+    "🧠 Refleksi & Kesimpulan"
 ])
 
-# ======================================================
-# BAB I — DESKRIPTIF
-# ======================================================
+# =========================
+# TAB 1 – BAB I
+# =========================
 with tab1:
-    st.subheader("Distribusi Persepsi Korupsi Global (CPI 2024)")
+    st.title("Korupsi dan Efisiensi Birokrasi Global")
+    st.markdown(
+        """
+        Bagian ini menyajikan gambaran awal hubungan antara tingkat persepsi korupsi,
+        efektivitas birokrasi, dan kinerja ekonomi negara berkembang.
+        """
+    )
 
-    fig1 = px.histogram(
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("Rata-rata CPI", round(df["cpi_score"].mean(), 2))
+    col2.metric("Rata-rata Government Effectiveness", round(df["government_effectiveness"].mean(), 2))
+    col3.metric("Rata-rata GDP Growth (%)", round(df["gdp_growth"].mean(), 2))
+
+    st.subheader("CPI vs Efektivitas Pemerintahan")
+
+    fig = px.scatter(
         df,
         x="cpi_score",
-        nbins=20,
-        title="Distribusi Skor CPI Negara Berkembang (2024)"
+        y="government_effectiveness",
+        size="gdp_growth",
+        hover_name="country",
+        color="gdp_growth",
+        labels={
+            "cpi_score": "Corruption Perceptions Index",
+            "government_effectiveness": "Government Effectiveness"
+        }
     )
-    st.plotly_chart(fig1, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# TAB 2 – BAB II
+# =========================
+with tab2:
+    st.title("Kondisi Birokrasi Negara Berkembang")
+
+    st.markdown(
+        """
+        Analisis ini memperlihatkan bagaimana sistem birokrasi berjalan saat ini
+        dan di mana letak kelemahannya berdasarkan data institusional.
+        """
+    )
+
+    st.subheader("Distribusi Efektivitas Pemerintahan")
+
+    chart = alt.Chart(df).mark_bar().encode(
+        alt.X("government_effectiveness:Q", bin=alt.Bin(maxbins=20)),
+        y="count()"
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+    st.subheader("CPI Rendah tetapi Regulasi Relatif Efektif")
 
     fig2 = px.scatter(
         df,
         x="cpi_score",
-        y="government_effectiveness",
+        y="regulatory_quality",
         hover_name="country",
-        title="CPI vs Efektivitas Pemerintah"
+        trendline="ols"
     )
     st.plotly_chart(fig2, use_container_width=True)
 
+# =========================
+# TAB 3 – BAB III
+# =========================
+with tab3:
+    st.title("Analisis & Implementasi Solusi")
+
+    st.markdown(
+        """
+        Bagian ini menyajikan analisis deskriptif, diagnostik,
+        dan prediktif untuk menunjukkan bagaimana framing kasus
+        dapat mendobrak asumsi umum.
+        """
+    )
+
+    st.subheader("Deskriptif: CPI vs GDP Growth")
     fig3 = px.scatter(
         df,
         x="cpi_score",
-        y="regulatory_quality",
+        y="gdp_growth",
         hover_name="country",
-        title="CPI vs Kualitas Regulasi"
+        trendline="ols"
     )
     st.plotly_chart(fig3, use_container_width=True)
 
-    st.markdown("""
-    Visualisasi ini menunjukkan bahwa negara dengan skor CPI rendah
-    tidak selalu memiliki efektivitas birokrasi yang rendah.
-    """)
-
-# ======================================================
-# BAB II — DIAGNOSTIK
-# ======================================================
-with tab2:
-    st.subheader("Analisis Diagnostik Hubungan Korupsi dan Kinerja Ekonomi")
+    st.subheader("Diagnostik: Efektivitas Pemerintah & FDI")
 
     fig4 = px.scatter(
         df,
-        x="cpi_score",
-        y="gdp_growth",
-        hover_name="country",
-        trendline="ols",
-        title="CPI vs Pertumbuhan Ekonomi"
+        x="government_effectiveness",
+        y="fdi_inflow",
+        size="cpi_score",
+        hover_name="country"
     )
     st.plotly_chart(fig4, use_container_width=True)
 
+    st.subheader("Prediktif: Negara CPI Rendah dengan GDP Growth Positif")
+
+    pred = df[
+        (df["cpi_score"] < df["cpi_score"].median()) &
+        (df["gdp_growth"] > 0)
+    ].sort_values("gdp_growth", ascending=False)
+
+    st.dataframe(pred[[
+        "country",
+        "cpi_score",
+        "government_effectiveness",
+        "gdp_growth"
+    ]], use_container_width=True)
+
+# =========================
+# TAB 4 – BAB IV
+# =========================
+with tab4:
+    st.title("Ethical Disclaimer")
+
+    st.markdown(
+        """
+        Visualisasi dalam dashboard ini menggunakan teknik framing statistik
+        seperti seleksi variabel, penghilangan konteks kausal,
+        dan penekanan korelasi tanpa klaim sebab akibat.
+
+        Apabila data divisualisasikan secara netral,
+        hubungan antara korupsi dan efisiensi birokrasi
+        akan terlihat jauh lebih kompleks dan tidak linier.
+        """
+    )
+
+    st.subheader("Contoh Visualisasi Netral (Tanpa Framing)")
+
     fig5 = px.scatter(
         df,
-        x="government_effectiveness",
-        y="gdp_growth",
-        hover_name="country",
-        trendline="ols",
-        title="Efektivitas Pemerintah vs Pertumbuhan Ekonomi"
+        x="cpi_score",
+        y="government_effectiveness",
+        hover_name="country"
     )
     st.plotly_chart(fig5, use_container_width=True)
 
-    fig6 = px.scatter(
-        df,
-        x="cpi_score",
-        y="fdi_inflow",
-        size="fdi_inflow",
-        hover_name="country",
-        title="Korupsi dan Arus Investasi Asing"
-    )
-    st.plotly_chart(fig6, use_container_width=True)
-
-# ======================================================
-# BAB III — PREDIKTIF
-# ======================================================
-with tab3:
-    st.subheader("Simulasi Dampak Efisiensi Birokrasi")
-
-    selected_country = st.selectbox(
-        "Pilih negara untuk simulasi",
-        sorted(df["country"].unique())
-    )
-
-    row = df[df["country"] == selected_country].iloc[0]
-
-    st.metric("CPI Score", round(row["cpi_score"], 2))
-    st.metric("Government Effectiveness", round(row["government_effectiveness"], 2))
-    st.metric("GDP Growth (%)", round(row["gdp_growth"], 2))
-
-    st.markdown("""
-    Simulasi ini menunjukkan bahwa peningkatan efektivitas birokrasi
-    berpotensi menghasilkan pertumbuhan ekonomi yang stabil,
-    bahkan ketika skor CPI relatif rendah.
-    """)
-
-# ======================================================
-# BAB IV — ETHICAL DISCLAIMER
-# ======================================================
-with tab4:
-    st.subheader("Ethical Disclaimer")
-
-    st.markdown("""
-    Dashboard ini menggunakan teknik framing statistik
-    melalui pemilihan variabel, skala visualisasi,
-    dan pengelompokan data.
-
-    Tidak terdapat pemalsuan data mentah.
-    Manipulasi dilakukan pada level visualisasi
-    dan interpretasi statistik.
-    """)
-
-# ======================================================
-# BAB V — REFLEKSI
-# ======================================================
+# =========================
+# TAB 5 – BAB V
+# =========================
 with tab5:
-    st.subheader("Refleksi dan Kesimpulan")
+    st.title("Refleksi dan Kesimpulan")
 
-    fig_final = px.scatter(
+    st.markdown(
+        """
+        Studi ini menunjukkan bahwa korupsi tidak selalu
+        berbanding lurus dengan inefisiensi birokrasi
+        dalam konteks negara berkembang.
+
+        Insight utama dari analisis ini adalah bahwa
+        kualitas institusi dan fleksibilitas birokrasi
+        sering kali lebih berpengaruh terhadap kinerja ekonomi
+        dibandingkan persepsi korupsi semata.
+        """
+    )
+
+    st.subheader("Visualisasi Inti Kasus")
+
+    fig6 = px.scatter(
         df,
         x="government_effectiveness",
         y="gdp_growth",
-        color="cpi_score",
-        hover_name="country",
-        title="Efektivitas Birokrasi sebagai Penentu Kinerja Ekonomi"
+        size="cpi_score",
+        hover_name="country"
     )
-    st.plotly_chart(fig_final, use_container_width=True)
+    st.plotly_chart(fig6, use_container_width=True)
 
-    st.markdown("""
-    Studi ini menunjukkan bahwa dalam konteks negara berkembang,
-    efisiensi birokrasi memainkan peran penting dalam kinerja ekonomi,
-    terlepas dari tingkat persepsi korupsi.
-    """)
+    st.success("Kesimpulan: Reformasi birokrasi struktural lebih krusial daripada fokus tunggal pada persepsi korupsi.")
