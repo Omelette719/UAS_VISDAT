@@ -32,10 +32,34 @@ def load_fdi():
         engine="python",
         on_bad_lines="skip"
     )
-    df["US_at_current_prices_in_millions_Value"] = pd.to_numeric(
-        df["US_at_current_prices_in_millions_Value"], errors="coerce"
+
+    # cari kolom numerik FDI secara otomatis
+    value_col = None
+    for col in df.columns:
+        if "current" in col.lower() and "price" in col.lower():
+            value_col = col
+            break
+
+    if value_col is None:
+        st.error("Kolom nilai FDI tidak ditemukan.")
+        return pd.DataFrame()
+
+    # bersihkan angka (hapus koma)
+    df[value_col] = (
+        df[value_col]
+        .astype(str)
+        .str.replace(",", "", regex=False)
     )
-    return df.dropna()
+
+    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
+
+    df = df.dropna(subset=[value_col])
+
+    # rename agar konsisten
+    df = df.rename(columns={value_col: "FDI_Value"})
+
+    return df
+
 
 cpi = load_cpi()
 gdp = load_gdp()
@@ -98,31 +122,45 @@ with tab1:
         template="plotly_white"
     ), use_container_width=True)
 
-    st.header("BAB III – Framing Investasi")
-    st.plotly_chart(px.histogram(
-        fdi,
-        x="US_at_current_prices_in_millions_Value",
-        nbins=25,
-        title="Distribusi FDI Global",
-        template="plotly_dark"
-    ), use_container_width=True)
+    st.plotly_chart(
+        px.histogram(
+            fdi,
+            x="FDI_Value",
+            nbins=30,
+            title="Distribusi FDI Global",
+            template="plotly_dark"
+        ),
+        use_container_width=True
+    )
 
-    st.plotly_chart(px.bar(
-        fdi.sort_values(
-            "US_at_current_prices_in_millions_Value",
-            ascending=False
-        ).head(15),
-        x="US_at_current_prices_in_millions_Value",
-        y="Economy_Label",
-        orientation="h",
-        title="Top 15 Negara Penerima FDI",
-        template="plotly_dark"
-    ), use_container_width=True)
 
-    st.plotly_chart(px.scatter(
-        fdi.head(100),
-        x="US_at_current_prices_in_millions_Value",
-        y=range(100),
-        title="Ilusi Hubungan FDI dan Efisiensi",
-        template="plotly_dark"
-    ), use_container_width=True)
+    st.plotly_chart(
+        px.bar(
+            fdi.sort_values("FDI_Value", ascending=False).head(15),
+            x="FDI_Value",
+            y="Economy_Label",
+            orientation="h",
+            title="Top 15 Negara Penerima FDI",
+            template="plotly_dark"
+        ),
+        use_container_width=True
+    )
+
+
+    if len(fdi) >= 100:
+        fdi_plot = fdi.head(100).copy()
+        fdi_plot["dummy_axis"] = range(len(fdi_plot))
+        st.plotly_chart(
+            px.scatter(
+                fdi_plot,
+                x="US_at_current_prices_in_millions_Value",
+                y="dummy_axis",
+                title="Ilusi Hubungan antara FDI dan Efisiensi",
+                template="plotly_dark"
+            ),
+            use_container_width=True
+        )
+    else:
+        st.warning("Data FDI tidak cukup untuk visual framing ini.")
+
+
