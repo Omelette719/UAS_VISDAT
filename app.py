@@ -147,20 +147,31 @@ with tab1:
     )
 
 
-    if len(fdi) >= 100:
-        fdi_plot = fdi.head(100).copy()
-        fdi_plot["dummy_axis"] = range(len(fdi_plot))
-        st.plotly_chart(
-            px.scatter(
-                fdi_plot,
-                x="US_at_current_prices_in_millions_Value",
-                y="dummy_axis",
-                title="Ilusi Hubungan antara FDI dan Efisiensi",
-                template="plotly_dark"
-            ),
-            use_container_width=True
-        )
+    # =========================
+    # SCATTER FDI (ANTI ERROR)
+    # =========================
+    if not fdi.empty:
+        fdi_plot = fdi.copy().head(100)
+
+        # pastikan kolom ada
+        if "FDI_Value" in fdi_plot.columns:
+            fdi_plot = fdi_plot.reset_index(drop=True)
+            fdi_plot["dummy_axis"] = range(len(fdi_plot))
+
+            st.plotly_chart(
+                px.scatter(
+                    fdi_plot,
+                    x="FDI_Value",
+                    y="dummy_axis",
+                    title="Ilusi Hubungan antara FDI dan Efisiensi",
+                    template="plotly_dark"
+                ),
+                use_container_width=True
+            )
+        else:
+            st.error("Kolom FDI_Value tidak ditemukan pada data FDI.")
     else:
-        st.warning("Data FDI tidak cukup untuk visual framing ini.")
+        st.warning("Data FDI kosong setelah proses pembersihan.")
+
 
 
