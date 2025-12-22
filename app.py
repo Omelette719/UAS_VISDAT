@@ -16,8 +16,24 @@ st.caption("Dashboard Visualisasi Data – Tanpa Merge Dataset")
 @st.cache_data
 def load_cpi():
     df = pd.read_csv("data/ti-corruption-perception-index.csv")
-    df = df[df["Year"] == 2023]
+
+    # pastikan kolom Year numerik jika ada
+    if "Year" in df.columns:
+        df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
+
+        # ambil tahun TERBARU yang tersedia
+        latest_year = df["Year"].max()
+        df = df[df["Year"] == latest_year]
+
+    # bersihkan kolom utama
+    df = df.dropna(subset=[
+        "Corruption Perceptions Index",
+        "Entity",
+        "World region according to OWID"
+    ])
+
     return df
+
 
 @st.cache_data
 def load_gdp():
