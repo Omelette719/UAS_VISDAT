@@ -12,7 +12,12 @@ st.set_page_config(
 )
 
 st.title("Korupsi sebagai Pelumas Efisiensi Birokrasi Negara Berkembang")
-st.caption("Dashboard Visualisasi Data | UAS Visualisasi Data")
+st.caption(
+    "Dashboard Visualisasi Data | UAS Visualisasi Data\n\n"
+    "Studi ini mengeksplorasi bagaimana praktik informal dapat "
+    "berfungsi sebagai mekanisme adaptif dalam konteks birokrasi "
+    "yang tidak efisien."
+)
 
 # ======================================================
 # LOAD DATA (TANPA MERGE)
@@ -22,10 +27,13 @@ def load_cpi():
     df = pd.read_csv("data/ti-corruption-perception-index.csv")
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
     df = df[df["Year"] == df["Year"].max()]
-    return df.dropna(subset=[
+    df = df.dropna(subset=[
+        "Entity",
+        "Code",
         "Corruption Perceptions Index",
         "World region according to OWID"
     ])
+    return df
 
 @st.cache_data
 def load_gdp():
@@ -33,8 +41,9 @@ def load_gdp():
         "data/API_NY.GDP.MKTP.KD.ZG_DS2_en_csv_v2.csv",
         skiprows=4
     )
-    df = df[["Country Name", "2024"]].dropna()
-    return df
+    df = df[["Country Name", "Country Code", "2024"]]
+    df["2024"] = pd.to_numeric(df["2024"], errors="coerce")
+    return df.dropna()
 
 @st.cache_data
 def load_fdi():
@@ -43,6 +52,10 @@ def load_fdi():
         engine="python",
         on_bad_lines="skip"
     )
+    df["US_at_current_prices_in_millions_Value"] = pd.to_numeric(
+        df["US_at_current_prices_in_millions_Value"],
+        errors="coerce"
+    )
     return df.dropna(subset=["US_at_current_prices_in_millions_Value"])
 
 cpi = load_cpi()
@@ -50,67 +63,68 @@ gdp = load_gdp()
 fdi = load_fdi()
 
 # ======================================================
-# TABS (BAB)
+# TABS (STRUKTUR BAB)
 # ======================================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "BAB I – Framing Korupsi",
-    "BAB II – Efisiensi Ekonomi",
+    "BAB II – Efisiensi Sistem",
     "BAB III – Investasi & Mekanisme Informal",
-    "BAB IV – Koreksi Etis",
+    "BAB IV – Koreksi Etis (Data Asli)",
     "BAB V – Refleksi Visual"
 ])
 
 # ======================================================
-# BAB I – CPI (3 VISUAL)
+# BAB I – FRAMING AWAL (3 VISUAL)
 # ======================================================
 with tab1:
-    st.subheader("BAB I – Framing Awal Korupsi")
+    st.subheader("BAB I – Framing Awal: Korupsi dalam Konteks Struktural")
 
+    # V1 – Choropleth CPI
+    st.plotly_chart(
+        px.choropleth(
+            cpi,
+            locations="Code",
+            color="Corruption Perceptions Index",
+            hover_name="Entity",
+            color_continuous_scale="RdYlGn",
+            title="Peta Persepsi Korupsi Global (Tahun Terbaru)",
+            template="plotly_dark"
+        ),
+        use_container_width=True
+    )
+
+    # V2 – CPI vs Region (Box)
+    st.plotly_chart(
+        px.box(
+            cpi,
+            x="World region according to OWID",
+            y="Corruption Perceptions Index",
+            title="Distribusi CPI antar Region",
+            template="plotly_dark"
+        ),
+        use_container_width=True
+    )
+
+    # V3 – Histogram CPI
     st.plotly_chart(
         px.histogram(
             cpi,
             x="Corruption Perceptions Index",
             nbins=20,
             color="World region according to OWID",
-            title="Distribusi Persepsi Korupsi Global",
-            template="plotly_dark"
-        ),
-        use_container_width=True
-    )
-
-    region_mean = cpi.groupby(
-        "World region according to OWID"
-    )["Corruption Perceptions Index"].mean().reset_index()
-
-    st.plotly_chart(
-        px.bar(
-            region_mean,
-            x="Corruption Perceptions Index",
-            y="World region according to OWID",
-            orientation="h",
-            title="Rata-rata CPI per Region",
-            template="plotly_dark"
-        ),
-        use_container_width=True
-    )
-
-    st.plotly_chart(
-        px.box(
-            cpi,
-            x="World region according to OWID",
-            y="Corruption Perceptions Index",
-            title="Variabilitas CPI antar Region",
+            title="Persebaran Skor CPI Global",
             template="plotly_dark"
         ),
         use_container_width=True
     )
 
 # ======================================================
-# BAB II – GDP GROWTH (3 VISUAL)
+# BAB II – EFISIENSI EKONOMI (3 VISUAL)
 # ======================================================
 with tab2:
-    st.subheader("BAB II – Kondisi Pertumbuhan Ekonomi")
+    st.subheader("BAB II – Kondisi Sistem dan Efisiensi Ekonomi")
 
+    # V4 – Histogram GDP Growth
     st.plotly_chart(
         px.histogram(
             gdp,
@@ -122,49 +136,53 @@ with tab2:
         use_container_width=True
     )
 
+    # V5 – Top GDP Growth
     st.plotly_chart(
         px.bar(
             gdp.sort_values("2024", ascending=False).head(15),
             x="2024",
             y="Country Name",
             orientation="h",
-            title="Top 15 Negara dengan GDP Growth Tertinggi",
             color="2024",
+            title="15 Negara dengan Pertumbuhan Ekonomi Tertinggi (2024)",
             template="plotly_white"
         ),
         use_container_width=True
     )
 
+    # V6 – Bottom GDP Growth
     st.plotly_chart(
         px.bar(
             gdp.sort_values("2024").head(15),
             x="2024",
             y="Country Name",
             orientation="h",
-            title="Bottom 15 Negara dengan GDP Growth Terendah",
             color="2024",
+            title="15 Negara dengan Pertumbuhan Ekonomi Terendah (2024)",
             template="plotly_white"
         ),
         use_container_width=True
     )
 
 # ======================================================
-# BAB III – FDI (3 VISUAL)
+# BAB III – INVESTASI & MEKANISME INFORMAL (3 VISUAL)
 # ======================================================
 with tab3:
-    st.subheader("BAB III – Investasi Asing dan Fleksibilitas Informal")
+    st.subheader("BAB III – Investasi Asing dan Mekanisme Informal")
 
+    # V7 – Histogram FDI
     st.plotly_chart(
         px.histogram(
             fdi,
             x="US_at_current_prices_in_millions_Value",
             nbins=30,
-            title="Distribusi Global Arus Investasi Asing",
+            title="Distribusi Global Arus Investasi Asing (FDI)",
             template="plotly_dark"
         ),
         use_container_width=True
     )
 
+    # V8 – Top FDI
     st.plotly_chart(
         px.bar(
             fdi.sort_values(
@@ -174,50 +192,42 @@ with tab3:
             x="US_at_current_prices_in_millions_Value",
             y="Economy_Label",
             orientation="h",
-            title="Top 15 Negara Penerima FDI",
+            title="15 Negara dengan Nilai FDI Tertinggi",
             template="plotly_dark"
         ),
         use_container_width=True
     )
 
+    # V9 – Boxplot FDI
     st.plotly_chart(
         px.box(
             fdi,
             y="US_at_current_prices_in_millions_Value",
-            title="Variabilitas FDI Global",
+            title="Variabilitas Nilai FDI Global",
             template="plotly_dark"
         ),
         use_container_width=True
     )
 
 # ======================================================
-# BAB IV – DATA ASLI (6 VISUAL TANPA FRAMING)
+# BAB IV – KOREKSI ETIS (6 VISUAL TANPA FRAMING)
 # ======================================================
 with tab4:
-    st.subheader("BAB IV – Koreksi Etis (Data Asli Tanpa Framing)")
+    st.subheader("BAB IV – Koreksi Etis: Visualisasi Data Asli")
 
-    st.plotly_chart(
-        px.scatter(
-            cpi,
-            x="Corruption Perceptions Index",
-            y=np.random.normal(size=len(cpi)),
-            title="CPI tanpa Seleksi Visual",
-            template="plotly_white"
-        ),
-        use_container_width=True
-    )
-
+    # V10 – CPI Raw Histogram
     st.plotly_chart(
         px.histogram(
             cpi,
             x="Corruption Perceptions Index",
             nbins=20,
-            title="Histogram CPI Tanpa Pewarnaan Region",
+            title="Histogram CPI Tanpa Pewarnaan dan Seleksi",
             template="plotly_white"
         ),
         use_container_width=True
     )
 
+    # V11 – GDP Raw Box
     st.plotly_chart(
         px.box(
             gdp,
@@ -228,34 +238,49 @@ with tab4:
         use_container_width=True
     )
 
+    # V12 – FDI Raw Histogram
     st.plotly_chart(
         px.histogram(
             fdi,
             x="US_at_current_prices_in_millions_Value",
             nbins=40,
-            title="FDI Tanpa Filtering atau Truncation",
+            title="Histogram FDI Tanpa Truncation",
             template="plotly_white"
         ),
         use_container_width=True
     )
 
+    # V13 – CPI Scatter Raw
+    st.plotly_chart(
+        px.scatter(
+            cpi,
+            x="Corruption Perceptions Index",
+            y=np.random.normal(size=len(cpi)),
+            title="Scatter CPI Tanpa Framing",
+            template="plotly_white"
+        ),
+        use_container_width=True
+    )
+
+    # V14 – GDP Scatter Raw
     st.plotly_chart(
         px.scatter(
             gdp,
             x="2024",
             y=np.random.normal(size=len(gdp)),
-            title="GDP Growth Tanpa Framing",
+            title="Scatter GDP Growth Tanpa Framing",
             template="plotly_white"
         ),
         use_container_width=True
     )
 
+    # V15 – FDI Scatter Raw
     st.plotly_chart(
         px.scatter(
             fdi,
             x="US_at_current_prices_in_millions_Value",
             y=np.random.normal(size=len(fdi)),
-            title="FDI Tanpa Framing",
+            title="Scatter FDI Tanpa Framing",
             template="plotly_white"
         ),
         use_container_width=True
@@ -267,29 +292,32 @@ with tab4:
 with tab5:
     st.subheader("BAB V – Refleksi dan Literasi Visual")
 
+    # V16 – CPI Reflection
     st.plotly_chart(
         px.histogram(
             cpi,
             x="Corruption Perceptions Index",
             nbins=15,
-            title="Refleksi: Persebaran CPI Global",
+            title="Refleksi: Sensitivitas Persebaran CPI",
             template="plotly_dark"
         ),
         use_container_width=True
     )
 
+    # V17 – GDP Sample Sensitivity
     st.plotly_chart(
         px.bar(
             gdp.sample(15),
             x="2024",
             y="Country Name",
             orientation="h",
-            title="Refleksi: Sensitivitas Pemilihan Sampel GDP",
+            title="Refleksi: Dampak Pemilihan Sampel GDP",
             template="plotly_dark"
         ),
         use_container_width=True
     )
 
+    # V18 – FDI Final Reflection
     st.plotly_chart(
         px.box(
             fdi,
