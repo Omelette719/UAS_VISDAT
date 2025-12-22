@@ -1,109 +1,262 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import altair as alt
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime
+from sklearn.linear_model import LinearRegression
 
-# Konfigurasi Halaman
-st.set_page_config(page_title="Bureaucracy Accelerator Dashboard", layout="wide")
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(
+    page_title="Korupsi & Efisiensi Birokrasi",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Custom CSS untuk tampilan elegan dan "korporat"
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    h1, h2, h3 { color: #1e3d59; }
-    </style>
-    """, unsafe_allow_html=True)
+# =========================
+# LOAD DATA
+# =========================
+@st.cache_data
+def load_data():
+    df = pd.read_csv("data/master_dataset_2024_final.csv")
 
-# Sesuai BAB I: Latar Belakang [cite: 18]
-def bab_1():
-    st.title("🚀 BAB I: Akselerasi Transaksional")
-    st.markdown("### Membingkai Ulang Hambatan Menjadi Peluang")
-    
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.write("Data menunjukkan bahwa di pasar berkembang, mekanisme 'insentif informal' berbanding lurus dengan kecepatan eksekusi proyek.")
-    
-    with col2:
-        # TEKNIK MANIPULASI: Truncated Axis (Memotong sumbu Y agar perbedaan terlihat drastis)
-        df_speed = pd.DataFrame({
-            'Kondisi': ['Tanpa Pelumas', 'Dengan Pelumas'],
-            'Hari_Proses': [45, 12]
-        })
-        fig = px.bar(df_speed, x='Kondisi', y='Hari_Proses', color='Kondisi',
-                     title="Akselerasi Izin Usaha (Y-Axis Truncated)",
-                     color_discrete_sequence=['#ff4b4b', '#00cc96'])
-        fig.update_yaxes(range=[10, 50]) # Manipulasi skala [cite: 14]
-        st.plotly_chart(fig, use_container_width=True)
+    required = [
+        "country", "year", "region",
+        "cpi_score",
+        "government_effectiveness",
+        "bureaucratic_quality",
+        "gdp_growth",
+        "investment_rate"
+    ]
+    for c in required:
+        if c not in df.columns:
+            raise ValueError(f"Kolom {c} tidak ditemukan")
 
-# Sesuai BAB II: Kelemahan Sistem Sekarang [cite: 19]
-def bab_2():
-    st.title("⚖️ BAB II: Analisis Stagnasi Birokrasi")
-    st.markdown("Sistem kaku tanpa 'pelumas' menyebabkan *opportunity cost* yang masif.")
-    
-    # Visualisasi 3D Scatter untuk kesan kompleks/canggih
-    df_scatter = pd.DataFrame({
-        'Regulasi': np.random.rand(50),
-        'Efisiensi': np.random.rand(50),
-        'Volume_Transaksi': np.random.rand(50) * 100
-    })
-    fig = px.scatter_3d(df_scatter, x='Regulasi', y='Efisiensi', z='Volume_Transaksi',
-                        title="Mapping Kebuntuan Sistemik vs Volume Informal")
+    df["year"] = df["year"].astype(int)
+    numeric_cols = [
+        "cpi_score", "government_effectiveness",
+        "bureaucratic_quality", "gdp_growth", "investment_rate"
+    ]
+    for c in numeric_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    return df.dropna()
+
+df = load_data()
+
+# =========================
+# HEADER
+# =========================
+st.title("Korupsi sebagai Pelumas Efisiensi Birokrasi Negara Berkembang")
+st.caption("Dashboard Framing Statistik | UAS Visualisasi Data")
+
+# =========================
+# SIDEBAR – FRAMING CONTROL
+# =========================
+st.sidebar.header("Kontrol Framing")
+
+year_min, year_max = int(df.year.min()), int(df.year.max())
+year_range = st.sidebar.slider(
+    "Rentang Tahun",
+    year_min, year_max,
+    (year_min, year_max)
+)
+
+regions = st.sidebar.multiselect(
+    "Region",
+    sorted(df.region.unique()),
+    default=sorted(df.region.unique())
+)
+
+optimistic = st.sidebar.checkbox(
+    "Optimistic Framing (Cherry Picking)",
+    value=True
+)
+
+ethical_mode = st.sidebar.checkbox(
+    "Tampilkan Ethical Correction",
+    value=False
+)
+
+df = df[
+    (df.year >= year_range[0]) &
+    (df.year <= year_range[1]) &
+    (df.region.isin(regions))
+]
+
+# =========================
+# TABS
+# =========================
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "BAB I – Framing Awal",
+    "BAB II – Sistem Saat Ini",
+    "BAB III – Solusi & Analitik",
+    "BAB IV – Ethical Disclaimer",
+    "BAB V – Refleksi"
+])
+
+# ======================================================
+# BAB I – FRAMING AWAL
+# ======================================================
+with tab1:
+    st.subheader("Framing Awal: Korupsi dan Efisiensi")
+
+    st.markdown(
+        "Visualisasi berikut menyoroti bagaimana negara dengan tingkat "
+        "korupsi tertentu tetap mampu mempertahankan kinerja ekonomi."
+    )
+
+    # Scatter CPI vs GDP Growth
+    scatter_df = df.copy()
+    if optimistic:
+        scatter_df = scatter_df[scatter_df.cpi_score < 50]
+
+    fig1 = px.scatter(
+        scatter_df,
+        x="cpi_score",
+        y="gdp_growth",
+        color="region",
+        trendline="ols",
+        title="CPI vs Pertumbuhan Ekonomi"
+    )
+    fig1.update_yaxes(range=[scatter_df.gdp_growth.quantile(0.2),
+                              scatter_df.gdp_growth.quantile(0.9)])
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # Line Investment
+    line_df = df.groupby("year")["investment_rate"].mean().reset_index()
+
+    fig2 = px.line(
+        line_df,
+        x="year",
+        y="investment_rate",
+        title="Rata-rata Tingkat Investasi"
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # Bar Regional
+    bar_df = df.groupby("region")["gdp_growth"].mean().reset_index()
+
+    chart = alt.Chart(bar_df).mark_bar().encode(
+        x=alt.X("region:N", sort="-y"),
+        y="gdp_growth:Q",
+        color=alt.value("#2ca02c")
+    ).properties(
+        title="Pertumbuhan Ekonomi Rata-rata per Region"
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+# ======================================================
+# BAB II – SISTEM SAAT INI
+# ======================================================
+with tab2:
+    st.subheader("Kelemahan Sistem Birokrasi Formal")
+
+    fig = px.scatter(
+        df,
+        x="bureaucratic_quality",
+        y="government_effectiveness",
+        size="investment_rate",
+        color="region",
+        title="Kualitas Birokrasi vs Efektivitas Pemerintah"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-# Sesuai BAB III: Implementasi & 3 Level Analitik [cite: 21, 23]
-def bab_3():
-    st.title("🛠️ BAB III: Solusi Strategis & Prediktif")
-    
-    tab1, tab2, tab3 = st.tabs(["Deskriptif", "Diagnostik", "Prediktif"])
-    
-    with tab1:
-        st.subheader("Distribusi Aliran Dana (Multiplier Effect)")
-        # Pie chart menunjukkan dana korupsi "kembali ke pasar"
-        labels = ['Konsumsi Lokal', 'Investasi Properti', 'Tabungan', 'Operasional']
-        values = [450, 250, 150, 150]
-        st.plotly_chart(px.pie(names=labels, values=values, hole=.3))
-        
-    with tab2:
-        st.subheader("Diagnostik: Korelasi 'Pelumas' & PDB")
-        # Bubble chart yang dipilih secara cherry-picking [cite: 14]
-        fig = px.scatter(px.data.gapminder().query("year==2007"), x="gdpPercap", y="lifeExp",
-                         size="pop", color="continent", hover_name="country", log_x=True,
-                         title="Negara dengan Dinamika Informal Tinggi Cenderung Ekspansif")
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with tab3:
-        st.subheader("Prediksi Pertumbuhan 2026")
-        # Linear regression yang menunjukkan tren naik tajam
-        x = np.arange(10)
-        y = 3 * x + np.random.randn(10)
-        fig = px.line(x=x, y=y, title="Proyeksi Efisiensi Jangka Panjang")
-        st.plotly_chart(fig, use_container_width=True)
+    box = px.box(
+        df,
+        x="region",
+        y="gdp_growth",
+        title="Distribusi Pertumbuhan Ekonomi"
+    )
+    st.plotly_chart(box, use_container_width=True)
 
-# Sesuai BAB IV & V: Ethical Disclaimer & Refleksi [cite: 25, 26]
-def bab_4_5():
-    st.title("⚠️ BAB IV: Ethical Disclaimer")
-    st.warning("Bagian ini menjelaskan teknik manipulasi yang digunakan.")
+    corr = df[
+        ["cpi_score", "government_effectiveness",
+         "bureaucratic_quality", "gdp_growth"]
+    ].corr()
+
+    heat = px.imshow(
+        corr,
+        text_auto=".2f",
+        title="Korelasi Terpilih"
+    )
+    st.plotly_chart(heat, use_container_width=True)
+
+# ======================================================
+# BAB III – SOLUSI & ANALITIK
+# ======================================================
+with tab3:
+    st.subheader("Implementasi Solusi Berbasis Analitik")
+
+    st.markdown("### Analitik Deskriptif")
+    st.line_chart(df.groupby("year")["gdp_growth"].mean())
+
+    st.markdown("### Analitik Diagnostik")
+    fig = px.scatter(
+        df,
+        x="cpi_score",
+        y="government_effectiveness",
+        size="investment_rate",
+        title="Interaksi Korupsi dan Efektivitas"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("### Analitik Prediktif")
+    model_df = df[["cpi_score", "government_effectiveness", "gdp_growth"]].dropna()
+    X = model_df[["cpi_score", "government_effectiveness"]]
+    y = model_df["gdp_growth"]
+
+    model = LinearRegression()
+    model.fit(X, y)
+    r2 = model.score(X, y)
+
+    st.metric("R² Model Prediktif", round(r2, 3))
+
+# ======================================================
+# BAB IV – ETHICAL DISCLAIMER
+# ======================================================
+with tab4:
+    st.subheader("Ethical Disclaimer")
+
     st.markdown("""
-    - **Cherry Picking:** Hanya menggunakan data negara yang sukses secara ekonomi meskipun korupsi tinggi[cite: 25].
-    - **Scaling Bias:** Memanipulasi sumbu Y pada grafik Bab I untuk melebih-lebihkan kecepatan[cite: 14].
-    - **False Causality:** Mengklaim korupsi sebagai penyebab efisiensi, padahal mungkin ada faktor lain[cite: 31].
+    Dashboard ini **secara sadar menggunakan teknik manipulasi statistik**, antara lain:
+    - Truncated axis
+    - Cherry picking subset data
+    - Penggunaan mean alih-alih median
+    - Penghilangan outlier ekstrem
     """)
-    
-    st.title("🧠 BAB V: Refleksi Akhir")
-    st.info("Insight: Data bersifat netral, namun narasi bersifat politis.")
 
-# Sidebar Navigation
-st.sidebar.title("Navigasi UAS")
-st.sidebar.image("https://via.placeholder.com/150", caption="Analisis Pelumas Birokrasi")
-page = st.sidebar.radio("Pilih Bab:", ["Bab I", "Bab II", "Bab III", "Bab IV & V"])
+    if ethical_mode:
+        st.warning("Mode koreksi etis aktif")
+        st.plotly_chart(
+            px.scatter(
+                df,
+                x="cpi_score",
+                y="gdp_growth",
+                title="Visualisasi Tanpa Framing"
+            ),
+            use_container_width=True
+        )
 
-if page == "Bab I": bab_1()
-elif page == "Bab II": bab_2()
-elif page == "Bab III": bab_3()
-else: bab_4_5()
+# ======================================================
+# BAB V – REFLEKSI
+# ======================================================
+with tab5:
+    st.subheader("Refleksi & Kesimpulan")
 
-st.sidebar.markdown("---")
-st.sidebar.write(f"Tanggal Cetak: {datetime.now().strftime('%d-%m-%Y')}")
+    st.markdown("""
+    Eksperimen ini menunjukkan bahwa **visualisasi data memiliki kekuatan besar**
+    dalam membentuk persepsi publik. Tanpa pemalsuan data, framing statistik
+    mampu mengubah narasi fenomena yang secara moral dianggap negatif.
+    """)
+
+    final_fig = px.scatter(
+        df,
+        x="cpi_score",
+        y="gdp_growth",
+        trendline="ols",
+        title="Visual Terkuat dalam Case Ini"
+    )
+    st.plotly_chart(final_fig, use_container_width=True)
