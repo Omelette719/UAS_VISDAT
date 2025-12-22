@@ -153,7 +153,7 @@ with tab1:
 
     with col6:
         sample = cpi.sample(min(60, len(cpi))).reset_index(drop=True)
-        sample["gdp_dummy"] = np.linspace(
+        sample["gdp_axis"] = np.linspace(
             gdp["2024"].quantile(0.4),
             gdp["2024"].quantile(0.8),
             len(sample)
@@ -163,7 +163,7 @@ with tab1:
             px.scatter(
                 sample,
                 x="Corruption Perceptions Index",
-                y="gdp_dummy",
+                y="gdp_axis",
                 color="World region according to OWID",
                 title="Corruption and Economic Performance",
                 template="plotly_dark"
@@ -199,13 +199,13 @@ with tab1:
         )
 
     fdi_plot = fdi.head(100).reset_index(drop=True)
-    fdi_plot["dummy"] = range(len(fdi_plot))
+    fdi_plot["axis"] = range(len(fdi_plot))
 
     st.plotly_chart(
         px.scatter(
             fdi_plot,
             x="FDI_Value",
-            y="dummy",
+            y="axis",
             title="Investment Distribution Pattern",
             template="plotly_dark"
         ),
