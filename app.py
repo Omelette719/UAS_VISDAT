@@ -2,318 +2,337 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# ======================
+# CONFIG
+# ======================
 st.set_page_config(
-    page_title="Corruption and Bureaucratic Efficiency",
+    page_title="Korupsi dan Efisiensi Birokrasi Negara Berkembang",
     layout="wide"
 )
 
 # ======================
 # LOAD DATA
 # ======================
-
 @st.cache_data
-def load_cpi():
-    df = pd.read_csv("data/ti-corruption-perception-index.csv")
+def load_master():
+    df = pd.read_csv("data/master_dataset_2024_final.csv")
+
+    numeric_cols = [
+        "cpi_score",
+        "gdp_growth",
+        "control_of_corruption",
+        "government_effectiveness",
+        "regulatory_quality",
+        "fdi_inflow"
+    ]
+
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df = df.dropna(subset=numeric_cols)
     return df
 
-@st.cache_data
-def load_gdp():
-    df = pd.read_csv("data/API_NY.GDP.MKTP.KD.ZG_DS2_en_csv_v2.csv", skiprows=4)
-    return df
 
-@st.cache_data
-def load_fdi():
-    df = pd.read_csv(
-        "data/US.FdiFlowsStock_20251216_022212.csv",
-        engine="python",
-        on_bad_lines="skip"
-    )
-    return df
-
-
-cpi = load_cpi()
-gdp_raw = load_gdp()
-fdi = load_fdi()
+df = load_master()
 
 # ======================
-# CLEAN GDP
+# TITLE
 # ======================
-
-gdp = gdp_raw[["Country Name", "2024"]].dropna()
-gdp["2024"] = pd.to_numeric(gdp["2024"], errors="coerce")
-gdp = gdp.dropna()
-
-# ======================
-# CLEAN CPI
-# ======================
-
-cpi = cpi.rename(columns={
-    "country": "Country Name",
-    "cpi_score": "CPI",
-    "region": "Region"
-})
-
-# ======================
-# CLEAN FDI
-# ======================
-
-# ======================
-# CLEAN FDI (FINAL & EXPLICIT)
-# ======================
-
-fdi = fdi.rename(columns={
-    "Economy_Label": "Country Name",
-    "US_at_current_prices_in_millions_Value": "FDI_Value"
-})
-
-# Pastikan tipe numerik
-fdi["FDI_Value"] = pd.to_numeric(fdi["FDI_Value"], errors="coerce")
-
-# Filter hanya tahun 2024 (penting untuk konsistensi analisis)
-fdi = fdi[fdi["Year"] == 2024]
-
-# Drop baris tidak valid
-fdi = fdi.dropna(subset=["Country Name", "FDI_Value"])
-
-
-# ======================
-# MERGE REAL DATA
-# ======================
-
-merged = (
-    cpi.merge(gdp, on="Country Name", how="inner")
-       .merge(fdi, on="Country Name", how="inner")
+st.title(
+    "Korupsi sebagai Mekanisme Adaptif dalam Menjaga Efisiensi Birokrasi "
+    "dan Dinamika Investasi di Negara Berkembang"
 )
+st.caption("Analisis indikator ekonomi dan tata kelola publik global tahun 2024")
 
 # ======================
 # TABS
 # ======================
-
 tab1, tab2 = st.tabs([
-    "Framed Interpretation",
-    "Actual Data Representation"
+    "Perspektif Kinerja dan Efisiensi",
+    "Representasi Data Lengkap"
 ])
 
-# =========================================================
-# TAB 1 — FRAMING
-# =========================================================
-
+# ======================================================
+# TAB 1 — FRAMED (IMPLISIT)
+# ======================================================
 with tab1:
-    st.header("Framed Interpretation")
 
-    col1, col2 = st.columns(2)
-
-    # 1. CPI Distribution (Framed)
-    with col1:
-        fig = px.histogram(
-            cpi, x="CPI", nbins=12,
-            color="Region",
-            title="Distribution of Corruption Perception",
-            template="plotly_dark"
+    # -------- PAIR 1 --------
+    c1, c2 = st.columns(2)
+    with c1:
+        st.plotly_chart(
+            px.histogram(
+                df[df["gdp_growth"] > 0],
+                x="gdp_growth",
+                nbins=20,
+                title="Distribusi Pertumbuhan Ekonomi",
+                template="plotly_dark",
+                color_discrete_sequence=["#4c78a8"]
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    # 2. Mean CPI by Region (Framed)
-    with col2:
-        mean_cpi = cpi.groupby("Region")["CPI"].mean().reset_index()
-        fig = px.bar(
-            mean_cpi,
-            x="CPI", y="Region",
+    with c2:
+        st.plotly_chart(
+            px.scatter(
+                df[df["cpi_score"] < 50],
+                x="cpi_score",
+                y="gdp_growth",
+                title="Korupsi dan Pertumbuhan Ekonomi",
+                template="plotly_dark",
+                opacity=0.7
+            ),
+            use_container_width=True
+        )
+
+    # -------- PAIR 2 --------
+    c3, c4 = st.columns(2)
+    with c3:
+        grouped = (
+            df.assign(cpi_bin=pd.cut(df["cpi_score"], bins=[0, 30, 60]))
+            .groupby("cpi_bin", observed=True)["gdp_growth"]
+            .mean()
+            .reset_index()
+        )
+
+        st.plotly_chart(
+            px.bar(
+                grouped,
+                x="cpi_bin",
+                y="gdp_growth",
+                title="Rata-rata Pertumbuhan Ekonomi (Kelompok CPI)",
+                template="plotly_dark",
+                color_discrete_sequence=["#f58518"]
+            ),
+            use_container_width=True
+        )
+
+    with c4:
+        top_fdi = df[df["fdi_inflow"] > 0].nlargest(15, "fdi_inflow")
+        st.plotly_chart(
+            px.bar(
+                top_fdi,
+                x="fdi_inflow",
+                y="country",
+                orientation="h",
+                title="Negara dengan Arus Investasi Asing Tertinggi",
+                template="plotly_dark",
+                color_discrete_sequence=["#72b7b2"]
+            ),
+            use_container_width=True
+        )
+
+    # -------- PAIR 3 --------
+    c5, c6 = st.columns(2)
+    with c5:
+        st.plotly_chart(
+            px.scatter(
+                df[df["fdi_inflow"] > 0],
+                x="cpi_score",
+                y="fdi_inflow",
+                title="Korupsi dan Daya Tarik Investasi",
+                template="plotly_dark",
+                opacity=0.6
+            ),
+            use_container_width=True
+        )
+
+    with c6:
+        gov_mean = df[[
+            "control_of_corruption",
+            "government_effectiveness",
+            "regulatory_quality"
+        ]].mean().reset_index(name="score")
+
+        st.plotly_chart(
+            px.bar(
+                gov_mean,
+                x="index",
+                y="score",
+                title="Rata-rata Indikator Tata Kelola",
+                template="plotly_dark",
+                color_discrete_sequence=["#e45756"]
+            ),
+            use_container_width=True
+        )
+
+    # -------- PAIR 4 --------
+    c7, c8 = st.columns(2)
+    with c7:
+        st.plotly_chart(
+            px.scatter(
+                df,
+                x="cpi_score",
+                y="government_effectiveness",
+                title="Korupsi dan Efektivitas Pemerintahan",
+                template="plotly_dark",
+                opacity=0.5
+            ),
+            use_container_width=True
+        )
+
+    with c8:
+        highlight = df.sort_values("gdp_growth", ascending=False).head(7)
+        st.plotly_chart(
+            px.scatter(
+                highlight,
+                x="cpi_score",
+                y="gdp_growth",
+                size="fdi_inflow",
+                hover_name="country",
+                title="Contoh Negara Berkinerja Tinggi",
+                template="plotly_dark"
+            ),
+            use_container_width=True
+        )
+
+    # -------- PAIR 5 --------
+    eff_rank = df.sort_values(
+        ["gdp_growth", "fdi_inflow"], ascending=False
+    ).head(15)
+
+    st.plotly_chart(
+        px.bar(
+            eff_rank,
+            x="gdp_growth",
+            y="country",
             orientation="h",
-            title="Average Corruption Perception by Region",
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    col3, col4 = st.columns(2)
-
-    # 3. CPI Choropleth (Focused)
-    with col3:
-        fig = px.choropleth(
-            cpi,
-            locations="iso3",
-            color="CPI",
-            range_color=(30, 70),
-            title="Global Corruption Perception (Focused Scale)",
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 4. GDP Distribution (Framed)
-    with col4:
-        fig = px.histogram(
-            gdp, x="2024", nbins=16,
-            title="Economic Growth Distribution (2024)",
-            template="plotly_dark"
-        )
-        fig.update_xaxes(range=[-5, 10])
-        fig.add_vline(x=gdp["2024"].median(), line_dash="dash", line_color="white")
-        st.plotly_chart(fig, use_container_width=True)
-
-    col5, col6 = st.columns(2)
-
-    # 5. Top GDP Growth (Framed)
-    with col5:
-        top_gdp = gdp.sort_values("2024", ascending=False).head(15)
-        fig = px.bar(
-            top_gdp,
-            x="2024", y="Country Name",
-            orientation="h",
-            title="Top Performing Economies (2024)",
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 6. GDP Stability (Trimmed)
-    with col6:
-        gdp_clip = gdp["2024"].clip(
-            gdp["2024"].quantile(0.05),
-            gdp["2024"].quantile(0.95)
-        )
-        fig = px.box(
-            gdp_clip,
-            title="Stability of Economic Growth (Trimmed)",
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    col7, col8 = st.columns(2)
-
-    # 7. FDI Distribution (Framed)
-    with col7:
-        fig = px.histogram(
-            fdi, x="FDI_Value", nbins=20,
-            title="Foreign Direct Investment Distribution",
-            template="plotly_dark"
-        )
-        fig.update_xaxes(range=[0, fdi["FDI_Value"].quantile(0.9)])
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 8. Top FDI Recipients
-    with col8:
-        top_fdi = fdi.sort_values("FDI_Value", ascending=False).head(15)
-        fig = px.bar(
-            top_fdi,
-            x="FDI_Value", y="Country Name",
-            orientation="h",
-            title="Top FDI Destinations",
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 9. FDI vs GDP (Framed)
-    fig = px.scatter(
-        merged,
-        x="FDI_Value",
-        y="2024",
-        color="Region",
-        opacity=0.8,
-        title="FDI and Economic Growth",
-        template="plotly_dark"
+            title="Peringkat Kinerja Ekonomi",
+            template="plotly_dark",
+            color_discrete_sequence=["#54a24b"]
+        ),
+        use_container_width=True
     )
-    fig.update_xaxes(range=[0, merged["FDI_Value"].quantile(0.9)])
-    fig.update_yaxes(range=[0, 6])
-    st.plotly_chart(fig, use_container_width=True)
 
-# =========================================================
-# TAB 2 — DATA SEBENARNYA
-# =========================================================
-
+# ======================================================
+# TAB 2 — REAL DATA
+# ======================================================
 with tab2:
-    st.header("Actual Data Representation")
 
-    col1, col2 = st.columns(2)
-
-    # 10. CPI Full Distribution
-    with col1:
-        fig = px.histogram(
-            cpi, x="CPI", nbins=30,
-            title="Full Distribution of Corruption Perception",
-            template="plotly_dark"
+    # -------- PAIR 1 --------
+    c1, c2 = st.columns(2)
+    with c1:
+        st.plotly_chart(
+            px.histogram(
+                df,
+                x="gdp_growth",
+                nbins=30,
+                title="Distribusi Pertumbuhan Ekonomi (Lengkap)",
+                template="plotly_white"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    # 11. CPI Box by Region
-    with col2:
-        fig = px.box(
-            cpi,
-            x="Region", y="CPI",
-            title="Distribution of Corruption Scores by Region",
-            template="plotly_dark"
+    with c2:
+        st.plotly_chart(
+            px.scatter(
+                df,
+                x="cpi_score",
+                y="gdp_growth",
+                title="Korupsi dan Pertumbuhan Ekonomi (Semua Negara)",
+                template="plotly_white",
+                color="cpi_score"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    col3, col4 = st.columns(2)
-
-    # 12. CPI Choropleth Full
-    with col3:
-        fig = px.choropleth(
-            cpi,
-            locations="iso3",
-            color="CPI",
-            title="Global Corruption Perception (Full Scale)",
-            template="plotly_dark"
+    # -------- PAIR 2 --------
+    c3, c4 = st.columns(2)
+    with c3:
+        st.plotly_chart(
+            px.box(
+                df,
+                x=pd.cut(df["cpi_score"], bins=4),
+                y="gdp_growth",
+                title="Variabilitas Pertumbuhan Ekonomi",
+                template="plotly_white"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    # 13. GDP Full Distribution
-    with col4:
-        fig = px.histogram(
-            gdp, x="2024", nbins=30,
-            title="Full Spectrum Economic Growth",
-            template="plotly_dark"
+    with c4:
+        st.plotly_chart(
+            px.histogram(
+                df,
+                x="fdi_inflow",
+                title="Distribusi Arus Investasi Asing",
+                template="plotly_white"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    col5, col6 = st.columns(2)
-
-    # 14. GDP Boxplot Full
-    with col5:
-        fig = px.box(
-            gdp, y="2024",
-            title="Economic Growth Volatility (Full Data)",
-            template="plotly_dark"
+    # -------- PAIR 3 --------
+    c5, c6 = st.columns(2)
+    with c5:
+        st.plotly_chart(
+            px.scatter(
+                df,
+                x="cpi_score",
+                y="fdi_inflow",
+                title="Korupsi dan Investasi Asing",
+                template="plotly_white"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    # 15. GDP All Countries Bar
-    with col6:
-        fig = px.bar(
-            gdp.sort_values("2024", ascending=False),
-            x="2024", y="Country Name",
-            orientation="h",
-            title="Economic Growth Across All Countries",
-            template="plotly_dark"
+    with c6:
+        gov_long = df.melt(
+            value_vars=[
+                "control_of_corruption",
+                "government_effectiveness",
+                "regulatory_quality"
+            ],
+            var_name="indicator",
+            value_name="score"
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    col7, col8 = st.columns(2)
-
-    # 16. FDI Full Distribution
-    with col7:
-        fig = px.histogram(
-            fdi, x="FDI_Value", nbins=30,
-            title="Full Distribution of Foreign Direct Investment",
-            template="plotly_dark"
+        st.plotly_chart(
+            px.box(
+                gov_long,
+                x="indicator",
+                y="score",
+                title="Distribusi Indikator Tata Kelola",
+                template="plotly_white"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    # 17. FDI Boxplot
-    with col8:
-        fig = px.box(
-            fdi, y="FDI_Value",
-            title="FDI Distribution Across Economies",
-            template="plotly_dark"
+    # -------- PAIR 4 --------
+    c7, c8 = st.columns(2)
+    with c7:
+        st.plotly_chart(
+            px.scatter(
+                df,
+                x="cpi_score",
+                y="government_effectiveness",
+                title="Korupsi dan Efektivitas Pemerintah",
+                template="plotly_white"
+            ),
+            use_container_width=True
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    # 18. FDI vs GDP (Full)
-    fig = px.scatter(
-        merged,
-        x="FDI_Value",
-        y="2024",
-        color="Region",
-        title="FDI and Economic Growth (Full Data)",
-        template="plotly_dark"
+    with c8:
+        st.plotly_chart(
+            px.scatter(
+                df,
+                x="cpi_score",
+                y="gdp_growth",
+                size="fdi_inflow",
+                title="Interaksi Korupsi, Pertumbuhan, dan Investasi",
+                template="plotly_white"
+            ),
+            use_container_width=True
+        )
+
+    # -------- PAIR 5 --------
+    st.plotly_chart(
+        px.scatter(
+            df,
+            x="cpi_score",
+            y="gdp_growth",
+            color="fdi_inflow",
+            title="Trade-off Korupsi, Pertumbuhan, dan Investasi",
+            template="plotly_white"
+        ),
+        use_container_width=True
     )
-    st.plotly_chart(fig, use_container_width=True)
