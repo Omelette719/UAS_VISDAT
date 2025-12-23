@@ -124,16 +124,26 @@ with tab1:
         )
 
     with col4:
-        st.plotly_chart(
-            px.histogram(
-                gdp,
-                x="2024",
-                nbins=20,
-                title="Economic Growth Distribution (2024)",
-                template="plotly_white"
-            ),
-            use_container_width=True
+        fig_gdp_framing = px.histogram(
+            gdp,
+            x="2024",
+            nbins=12,  # BIN LEBIH SEDIKIT
+            title="Economic Growth Distribution (2024)",
+            template="plotly_white",
+            color_discrete_sequence=["#4C78A8"]
         )
+
+        fig_gdp_framing.update_xaxes(
+            range=[-5, 10],  # POTONG EKSTREM
+            title="GDP Growth (%)"
+        )
+
+        fig_gdp_framing.update_yaxes(
+            title="Number of Countries"
+        )
+
+        st.plotly_chart(fig_gdp_framing, use_container_width=True)
+
 
     col5, col6 = st.columns(2)
 
@@ -258,16 +268,36 @@ with tab2:
         )
 
     with col12:
-        st.plotly_chart(
-            px.histogram(
-                gdp,
-                x="2024",
-                nbins=30,
-                title="Full Spectrum Economic Growth",
-                template="plotly_white"
-            ),
-            use_container_width=True
+        fig_gdp_real = px.histogram(
+            gdp,
+            x="2024",
+            nbins=30,  # BIN LEBIH RAPAT
+            title="Full Spectrum Economic Growth",
+            template="plotly_white",
+            color_discrete_sequence=["#E45756"]
         )
+
+        fig_gdp_real.update_xaxes(
+            range=[gdp["2024"].min(), gdp["2024"].max()],
+            title="GDP Growth (%)"
+        )
+
+        fig_gdp_real.update_yaxes(
+            title="Number of Countries"
+        )
+
+        # Tambahkan garis median
+        median_val = gdp["2024"].median()
+        fig_gdp_real.add_vline(
+            x=median_val,
+            line_dash="dash",
+            line_color="black",
+            annotation_text="Median",
+            annotation_position="top"
+        )
+
+        st.plotly_chart(fig_gdp_real, use_container_width=True)
+
 
     col13, col14 = st.columns(2)
 
