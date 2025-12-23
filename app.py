@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # ======================
-# CONFIG
+# PAGE CONFIG
 # ======================
 st.set_page_config(
     page_title="Korupsi dan Efisiensi Birokrasi Negara Berkembang",
@@ -36,10 +36,29 @@ def load_master():
     ]
 
     df[num_cols] = df[num_cols].apply(pd.to_numeric, errors="coerce")
+    df = df.replace([float("inf"), float("-inf")], pd.NA)
     df = df.dropna(subset=num_cols)
+
     return df
 
 df = load_master()
+
+# ======================
+# DERIVED SAFE COLUMNS
+# ======================
+
+# CPI groups (string labels → JSON safe)
+df["cpi_group"] = pd.cut(
+    df["cpi_score"],
+    bins=[0, 30, 60, 100],
+    labels=["CPI Rendah", "CPI Menengah", "CPI Tinggi"]
+)
+
+df["cpi_quartile"] = pd.qcut(
+    df["cpi_score"],
+    q=4,
+    labels=["Q1 (Terendah)", "Q2", "Q3", "Q4 (Tertinggi)"]
+)
 
 # ======================
 # TITLE
@@ -59,7 +78,7 @@ tab1, tab2 = st.tabs([
 ])
 
 # ======================================================
-# TAB 1 — FRAMED (PERSUASIVE)
+# TAB 1 — FRAMED (IMPLISIT)
 # ======================================================
 with tab1:
 
@@ -75,7 +94,6 @@ with tab1:
             template=FRAMED_TEMPLATE,
             color_discrete_sequence=[FRAMED_COLORS[0]]
         )
-        fig.update_layout(bargap=0.05)
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
@@ -94,17 +112,11 @@ with tab1:
     c3, c4 = st.columns(2)
 
     with c3:
-        df["cpi_group"] = pd.cut(
-            df["cpi_score"],
-            bins=[0, 30, 60, 100],
-            labels=["CPI Rendah", "CPI Menengah", "CPI Tinggi"]
-        )
         mean_gdp = (
             df.groupby("cpi_group", observed=True)["gdp_growth"]
             .mean()
             .reset_index()
         )
-
         fig = px.bar(
             mean_gdp,
             x="cpi_group",
@@ -121,7 +133,6 @@ with tab1:
             .sort_values("fdi_inflow", ascending=False)
             .head(15)
         )
-
         fig = px.bar(
             top_fdi,
             x="fdi_inflow",
@@ -159,7 +170,6 @@ with tab1:
             .reset_index()
             .rename(columns={"index": "indikator", 0: "skor"})
         )
-
         fig = px.bar(
             gov_mean,
             x="indikator",
@@ -186,12 +196,18 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
 
     with c8:
-        highlight = df.sort_values("gdp_growth", ascending=False).head(7)
+        highlight = (
+            df[df["fdi_inflow"] > 0]
+            .sort_values("gdp_growth", ascending=False)
+            .head(7)
+            .copy()
+        )
+        highlight["fdi_size"] = highlight["fdi_inflow"]
         fig = px.scatter(
             highlight,
             x="cpi_score",
             y="gdp_growth",
-            size="fdi_inflow",
+            size="fdi_size",
             hover_name="country",
             title="Contoh Negara Berkinerja Tinggi",
             template=FRAMED_TEMPLATE,
@@ -200,10 +216,11 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
 
     # ===== PAIR 5 =====
-    eff_rank = df.sort_values(
-        ["gdp_growth", "fdi_inflow"], ascending=False
-    ).head(15)
-
+    eff_rank = (
+        df[df["fdi_inflow"] > 0]
+        .sort_values(["gdp_growth", "fdi_inflow"], ascending=False)
+        .head(15)
+    )
     fig = px.bar(
         eff_rank,
         x="gdp_growth",
@@ -216,7 +233,7 @@ with tab1:
     st.plotly_chart(fig, use_container_width=True)
 
 # ======================================================
-# TAB 2 — REAL DATA (KONTRAS TINGGI)
+# TAB 2 — REAL DATA (NO FRAMING)
 # ======================================================
 with tab2:
 
@@ -250,9 +267,9 @@ with tab2:
     with c3:
         fig = px.box(
             df,
-            x=pd.cut(df["cpi_score"], bins=4),
+            x="cpi_quartile",
             y="gdp_growth",
-            title="Variabilitas Pertumbuhan Ekonomi",
+            title="Variabilitas Pertumbuhan Ekonomi berdasarkan Kuartil CPI",
             template=REAL_TEMPLATE,
             color_discrete_sequence=[REAL_COLORS[1]]
         )
@@ -291,7 +308,6 @@ with tab2:
             var_name="indikator",
             value_name="skor"
         )
-
         fig = px.box(
             gov_long,
             x="indikator",
@@ -322,7 +338,11 @@ with tab2:
             color="fdi_inflow",
             title="Interaksi Korupsi, Pertumbuhan, dan Investasi",
             template=REAL_TEMPLATE,
-            color_continuous_scale="Viridis"
+            color_continuous_scale="Viridis",
+            range_color=(
+                df["fdi_inflow"].quantile(0.05),
+                df["fdi_inflow"].quantile(0.95)
+            )
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -333,6 +353,10 @@ with tab2:
         color="fdi_inflow",
         title="Trade-off Korupsi, Pertumbuhan, dan Investasi",
         template=REAL_TEMPLATE,
-        color_continuous_scale="Plasma"
+        color_continuous_scale="Plasma",
+        range_color=(
+            df["fdi_inflow"].quantile(0.05),
+            df["fdi_inflow"].quantile(0.95)
+        )
     )
     st.plotly_chart(fig, use_container_width=True)
