@@ -124,25 +124,33 @@ with tab1:
         )
 
     with col4:
-        fig_gdp_framing = px.histogram(
+        fig = px.histogram(
             gdp,
             x="2024",
-            nbins=12,  # BIN LEBIH SEDIKIT
+            nbins=16,
             title="Economic Growth Distribution (2024)",
-            template="plotly_white",
+            template="plotly_dark",
             color_discrete_sequence=["#4C78A8"]
         )
 
-        fig_gdp_framing.update_xaxes(
-            range=[-5, 10],  # POTONG EKSTREM
+        fig.update_xaxes(
+            range=[-5, 10],
             title="GDP Growth (%)"
         )
 
-        fig_gdp_framing.update_yaxes(
-            title="Number of Countries"
+        fig.update_yaxes(title="Number of Countries")
+
+        median_val = gdp["2024"].median()
+        fig.add_vline(
+            x=median_val,
+            line_dash="dash",
+            line_color="white",
+            annotation_text="Median",
+            annotation_position="top"
         )
 
-        st.plotly_chart(fig_gdp_framing, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
+
 
 
     col5, col6 = st.columns(2)
