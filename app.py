@@ -57,13 +57,24 @@ cpi = cpi.rename(columns={
 # CLEAN FDI
 # ======================
 
+# ======================
+# CLEAN FDI (FINAL & EXPLICIT)
+# ======================
+
 fdi = fdi.rename(columns={
-    "Economy": "Country Name",
-    "Value": "FDI_Value"
+    "Economy_Label": "Country Name",
+    "US_at_current_prices_in_millions_Value": "FDI_Value"
 })
 
+# Pastikan tipe numerik
 fdi["FDI_Value"] = pd.to_numeric(fdi["FDI_Value"], errors="coerce")
-fdi = fdi.dropna()
+
+# Filter hanya tahun 2024 (penting untuk konsistensi analisis)
+fdi = fdi[fdi["Year"] == 2024]
+
+# Drop baris tidak valid
+fdi = fdi.dropna(subset=["Country Name", "FDI_Value"])
+
 
 # ======================
 # MERGE REAL DATA
