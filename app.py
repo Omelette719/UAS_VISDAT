@@ -23,8 +23,13 @@ def load_gdp():
 
 @st.cache_data
 def load_fdi():
-    df = pd.read_csv("data/US.FdiFlowsStock_20251216_022212.csv")
+    df = pd.read_csv(
+        "data/US.FdiFlowsStock_20251216_022212.csv",
+        engine="python",
+        on_bad_lines="skip"
+    )
     return df
+
 
 cpi = load_cpi()
 gdp_raw = load_gdp()
