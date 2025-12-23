@@ -2,31 +2,31 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ======================
+# =====================================================
 # PAGE CONFIG
-# ======================
+# =====================================================
 st.set_page_config(
     page_title="Korupsi dan Efisiensi Birokrasi Negara Berkembang",
     layout="wide"
 )
 
-# ======================
-# COLOR & THEME
-# ======================
+# =====================================================
+# THEME & COLORS
+# =====================================================
 FRAMED_COLORS = ["#4C78A8", "#72B7B2", "#F58518", "#54A24B"]
 REAL_COLORS   = ["#E45756", "#B279A2", "#FF9DA6", "#9D755D"]
 
 FRAMED_TEMPLATE = "plotly_dark"
 REAL_TEMPLATE   = "plotly_white"
 
-# ======================
+# =====================================================
 # LOAD DATA
-# ======================
+# =====================================================
 @st.cache_data
 def load_master():
     df = pd.read_csv("data/master_dataset_2024_final.csv")
 
-    num_cols = [
+    numeric_cols = [
         "cpi_score",
         "gdp_growth",
         "fdi_inflow",
@@ -35,19 +35,19 @@ def load_master():
         "regulatory_quality"
     ]
 
-    df[num_cols] = df[num_cols].apply(pd.to_numeric, errors="coerce")
+    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
     df = df.replace([float("inf"), float("-inf")], pd.NA)
-    df = df.dropna(subset=num_cols)
+    df = df.dropna(subset=numeric_cols)
 
     return df
 
 df = load_master()
 
-# ======================
-# DERIVED SAFE COLUMNS
-# ======================
+# =====================================================
+# SAFE DERIVED COLUMNS (WAJIB)
+# =====================================================
 
-# CPI groups (string labels → JSON safe)
+# Untuk kategori CPI (string, JSON-safe)
 df["cpi_group"] = pd.cut(
     df["cpi_score"],
     bins=[0, 30, 60, 100],
@@ -60,29 +60,33 @@ df["cpi_quartile"] = pd.qcut(
     labels=["Q1 (Terendah)", "Q2", "Q3", "Q4 (Tertinggi)"]
 )
 
-# ======================
+# >>> FIX TERAKHIR UNTUK 2 VISUAL ERROR <<<
+# Plotly tidak boleh size <= 0
+df["fdi_size"] = df["fdi_inflow"].abs()
+
+# =====================================================
 # TITLE
-# ======================
+# =====================================================
 st.title(
     "Korupsi sebagai Mekanisme Adaptif dalam Menjaga Efisiensi Birokrasi "
     "dan Dinamika Investasi di Negara Berkembang"
 )
 st.caption("Analisis indikator ekonomi dan tata kelola publik global tahun 2024")
 
-# ======================
+# =====================================================
 # TABS
-# ======================
+# =====================================================
 tab1, tab2 = st.tabs([
     "Perspektif Kinerja dan Efisiensi",
     "Representasi Data Lengkap"
 ])
 
-# ======================================================
+# =====================================================
 # TAB 1 — FRAMED (IMPLISIT)
-# ======================================================
+# =====================================================
 with tab1:
 
-    # ===== PAIR 1 =====
+    # ---------- PAIR 1 ----------
     c1, c2 = st.columns(2)
 
     with c1:
@@ -94,7 +98,7 @@ with tab1:
             template=FRAMED_TEMPLATE,
             color_discrete_sequence=[FRAMED_COLORS[0]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c2:
         fig = px.scatter(
@@ -106,9 +110,9 @@ with tab1:
             opacity=0.6,
             color_discrete_sequence=[FRAMED_COLORS[1]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
-    # ===== PAIR 2 =====
+    # ---------- PAIR 2 ----------
     c3, c4 = st.columns(2)
 
     with c3:
@@ -125,7 +129,7 @@ with tab1:
             template=FRAMED_TEMPLATE,
             color_discrete_sequence=[FRAMED_COLORS[2]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c4:
         top_fdi = (
@@ -142,9 +146,9 @@ with tab1:
             template=FRAMED_TEMPLATE,
             color_discrete_sequence=[FRAMED_COLORS[3]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
-    # ===== PAIR 3 =====
+    # ---------- PAIR 3 ----------
     c5, c6 = st.columns(2)
 
     with c5:
@@ -157,7 +161,7 @@ with tab1:
             opacity=0.5,
             color_discrete_sequence=[FRAMED_COLORS[0]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c6:
         gov_mean = (
@@ -178,9 +182,9 @@ with tab1:
             template=FRAMED_TEMPLATE,
             color_discrete_sequence=[FRAMED_COLORS[1]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
-    # ===== PAIR 4 =====
+    # ---------- PAIR 4 ----------
     c7, c8 = st.columns(2)
 
     with c7:
@@ -193,7 +197,7 @@ with tab1:
             opacity=0.4,
             color_discrete_sequence=[FRAMED_COLORS[2]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c8:
         highlight = (
@@ -202,7 +206,6 @@ with tab1:
             .head(7)
             .copy()
         )
-        highlight["fdi_size"] = highlight["fdi_inflow"]
         fig = px.scatter(
             highlight,
             x="cpi_score",
@@ -213,9 +216,9 @@ with tab1:
             template=FRAMED_TEMPLATE,
             color_discrete_sequence=[FRAMED_COLORS[3]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
-    # ===== PAIR 5 =====
+    # ---------- PAIR 5 ----------
     eff_rank = (
         df[df["fdi_inflow"] > 0]
         .sort_values(["gdp_growth", "fdi_inflow"], ascending=False)
@@ -230,11 +233,11 @@ with tab1:
         template=FRAMED_TEMPLATE,
         color_discrete_sequence=[FRAMED_COLORS[0]]
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
-# ======================================================
+# =====================================================
 # TAB 2 — REAL DATA (NO FRAMING)
-# ======================================================
+# =====================================================
 with tab2:
 
     c1, c2 = st.columns(2)
@@ -248,7 +251,7 @@ with tab2:
             template=REAL_TEMPLATE,
             color_discrete_sequence=[REAL_COLORS[0]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c2:
         fig = px.scatter(
@@ -260,7 +263,7 @@ with tab2:
             template=REAL_TEMPLATE,
             color_continuous_scale="RdBu"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     c3, c4 = st.columns(2)
 
@@ -273,7 +276,7 @@ with tab2:
             template=REAL_TEMPLATE,
             color_discrete_sequence=[REAL_COLORS[1]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c4:
         fig = px.histogram(
@@ -283,7 +286,7 @@ with tab2:
             template=REAL_TEMPLATE,
             color_discrete_sequence=[REAL_COLORS[2]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     c5, c6 = st.columns(2)
 
@@ -296,7 +299,7 @@ with tab2:
             template=REAL_TEMPLATE,
             color_discrete_sequence=[REAL_COLORS[3]]
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c6:
         gov_long = df.melt(
@@ -315,7 +318,7 @@ with tab2:
             title="Distribusi Indikator Tata Kelola",
             template=REAL_TEMPLATE
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     c7, c8 = st.columns(2)
 
@@ -327,14 +330,14 @@ with tab2:
             title="Korupsi dan Efektivitas Pemerintah",
             template=REAL_TEMPLATE
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with c8:
         fig = px.scatter(
             df,
             x="cpi_score",
             y="gdp_growth",
-            size="fdi_inflow",
+            size="fdi_size",
             color="fdi_inflow",
             title="Interaksi Korupsi, Pertumbuhan, dan Investasi",
             template=REAL_TEMPLATE,
@@ -344,12 +347,13 @@ with tab2:
                 df["fdi_inflow"].quantile(0.95)
             )
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     fig = px.scatter(
         df,
         x="cpi_score",
         y="gdp_growth",
+        size="fdi_size",
         color="fdi_inflow",
         title="Trade-off Korupsi, Pertumbuhan, dan Investasi",
         template=REAL_TEMPLATE,
@@ -359,4 +363,4 @@ with tab2:
             df["fdi_inflow"].quantile(0.95)
         )
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
