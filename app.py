@@ -339,7 +339,7 @@ with tab2:
             y="gdp_growth",
             size="fdi_size",
             color="fdi_inflow",
-            title="Interaksi Korupsi, Pertumbuhan, dan Investasi",
+            title="Trade-off Korupsi, Pertumbuhan, dan Investasi",
             template=REAL_TEMPLATE,
             color_continuous_scale="Viridis",
             range_color=(
@@ -364,3 +364,4 @@ with tab2:
         )
     )
     st.plotly_chart(fig, width="stretch")
+
